@@ -5,6 +5,7 @@ import Visits from "./pages/Visits";
 import CreateVisit from "./pages/CreateVisit";
 import Invitation from "./pages/Invitation";
 import Approvals from "./pages/Approvals";
+import CheckIn from "./pages/CheckIn";
 import ComingSoon from "./pages/ComingSoon";
 import { isLoggedIn } from "./services/auth";
 
@@ -68,7 +69,7 @@ function App() {
         path="/check-in"
         element={
           <PrivateRoute>
-            <ComingSoon title="Check-in" />
+            <CheckIn />
           </PrivateRoute>
         }
       />

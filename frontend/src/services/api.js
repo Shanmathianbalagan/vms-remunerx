@@ -125,6 +125,32 @@ export async function decideApproval(approvalId, decisionStatus, comments) {
   return data;
 }
 
+export async function checkIn(code) {
+  const response = await fetch(`${API_URL}/api/checkin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ code }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Check-in failed");
+  }
+  return data;
+}
+
+export async function checkOut(code) {
+  const response = await fetch(`${API_URL}/api/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ code }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Check-out failed");
+  }
+  return data;
+}
+
 export async function getVisits({ search, visitDate, status } = {}) {
   const params = new URLSearchParams();
   if (search) params.set("search", search);

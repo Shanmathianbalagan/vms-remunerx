@@ -103,6 +103,27 @@ CREATE TABLE IF NOT EXISTS approvals (
     FOREIGN KEY (approver_id) REFERENCES employees(employee_id) ON DELETE SET NULL
 );
 
+-- 9. Visit Events Table
+CREATE TABLE IF NOT EXISTS visit_events (
+    visit_event_id INT AUTO_INCREMENT PRIMARY KEY,
+    visit_id INT NOT NULL,
+    event_type VARCHAR(20) NOT NULL,
+    event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    recorded_by INT NULL,
+    FOREIGN KEY (visit_id) REFERENCES visits(visit_id) ON DELETE CASCADE,
+    FOREIGN KEY (recorded_by) REFERENCES employees(employee_id) ON DELETE SET NULL
+);
+
+-- 10. Badges Table
+CREATE TABLE IF NOT EXISTS badges (
+    badge_id INT AUTO_INCREMENT PRIMARY KEY,
+    visit_id INT NOT NULL,
+    badge_code VARCHAR(32) UNIQUE NOT NULL,
+    status VARCHAR(50) DEFAULT 'ISSUED',
+    issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (visit_id) REFERENCES visits(visit_id) ON DELETE CASCADE
+);
+
 -- ===================================================
 -- SEED DATA
 -- ===================================================

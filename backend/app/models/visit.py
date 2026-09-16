@@ -25,3 +25,5 @@ class Visit(Base):
     invitations = relationship("Invitation", back_populates="visit")
     notifications = relationship("Notification", back_populates="visit")
     approvals = relationship("Approval", back_populates="visit")
+    visit_events = relationship("VisitEvent", back_populates="visit")
+    badges = relationship("Badge", back_populates="visit")
