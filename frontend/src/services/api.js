@@ -46,6 +46,31 @@ export async function createVisitor(visitor) {
   return data;
 }
 
+export async function searchEmployees(q) {
+  const response = await fetch(
+    `${API_URL}/api/employees/search?q=${encodeURIComponent(q)}`,
+    { headers: authHeaders() }
+  );
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to search employees");
+  }
+  return data;
+}
+
+export async function createEmployee(employee) {
+  const response = await fetch(`${API_URL}/api/employees`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(employee),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to add host");
+  }
+  return data;
+}
+
 export async function getLocations() {
   const response = await fetch(`${API_URL}/api/locations`, {
     headers: authHeaders(),
@@ -53,6 +78,17 @@ export async function getLocations() {
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.detail || "Failed to load locations");
+  }
+  return data;
+}
+
+export async function getMeetingRooms() {
+  const response = await fetch(`${API_URL}/api/meeting-rooms`, {
+    headers: authHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to load meeting rooms");
   }
   return data;
 }

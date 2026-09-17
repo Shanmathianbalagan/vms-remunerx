@@ -7,6 +7,7 @@ class VisitEvent(Base):
     __tablename__ = "visit_events"
 
     visit_event_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    tenant_id = Column(Integer, nullable=False, default=1, index=True)
     visit_id = Column(Integer, ForeignKey("visits.visit_id"), nullable=False)
     event_type = Column(String(20), nullable=False)  # CHECK_IN / CHECK_OUT
     event_time = Column(DateTime, server_default=func.now())

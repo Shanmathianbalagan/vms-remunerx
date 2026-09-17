@@ -5,12 +5,14 @@ from pydantic import BaseModel, field_validator, model_validator
 class VisitCreate(BaseModel):
     visitor_id: int
     location_id: int
+    meeting_room_id: int | None = None
     purpose: str
     start_date: date
     end_date: date
     start_time: time
     end_time: time
     notes: str | None = None
+    host_employee_id: int | None = None
 
     @field_validator("purpose")
     @classmethod
@@ -45,6 +47,22 @@ class LocationSummary(BaseModel):
         from_attributes = True
 
 
+class MeetingRoomSummary(BaseModel):
+    meeting_room_id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class HostSummary(BaseModel):
+    employee_id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class VisitResponse(BaseModel):
     visit_id: int
     purpose: str
@@ -57,6 +75,8 @@ class VisitResponse(BaseModel):
     created_at: datetime
     visitor: VisitorSummary
     location: LocationSummary
+    meeting_room: MeetingRoomSummary | None = None
+    employee: HostSummary
 
     class Config:
         from_attributes = True

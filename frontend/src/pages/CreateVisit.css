@@ -24,6 +24,18 @@
   margin: 0 0 16px;
 }
 
+.create-visit-host-section {
+  margin-bottom: 20px;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.host-section-hint {
+  font-size: 13px;
+  color: #92400e;
+  margin: -10px 0 14px;
+}
+
 .visitor-search-form {
   display: flex;
   gap: 10px;

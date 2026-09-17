@@ -17,7 +17,7 @@ function formatDateRange(startDate, endDate) {
   return startDate === endDate ? startDate : `${startDate} → ${endDate}`;
 }
 
-export default function VisitTable({ visits }) {
+export default function VisitTable({ visits, showHost = false }) {
   if (visits.length === 0) {
     return <div className="visit-table-empty">No visits found.</div>;
   }
@@ -27,6 +27,7 @@ export default function VisitTable({ visits }) {
       <table className="visit-table">
         <thead>
           <tr>
+            {showHost && <th>Host</th>}
             <th>Visitor</th>
             <th>Company</th>
             <th>Purpose</th>
@@ -41,10 +42,14 @@ export default function VisitTable({ visits }) {
         <tbody>
           {visits.map((visit) => (
             <tr key={visit.visit_id}>
+              {showHost && <td>{visit.employee.name}</td>}
               <td>{visit.visitor.name}</td>
               <td>{visit.visitor.company || "-"}</td>
               <td>{visit.purpose}</td>
-              <td>{visit.location.name}</td>
+              <td>
+                {visit.location.name}
+                {visit.meeting_room ? ` · ${visit.meeting_room.name}` : ""}
+              </td>
               <td>{formatDateRange(visit.start_date, visit.end_date)}</td>
               <td>{formatTime(visit.start_time)}</td>
               <td>{formatTime(visit.end_time)}</td>

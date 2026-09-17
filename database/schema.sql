@@ -7,6 +7,7 @@ USE vms_db;
 -- 1. Employees Table
 CREATE TABLE IF NOT EXISTS employees (
     employee_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     department VARCHAR(100) DEFAULT 'General',
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS employees (
 -- 2. Users Table (Authentication)
 CREATE TABLE IF NOT EXISTS users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'EMPLOYEE',
@@ -29,15 +31,26 @@ CREATE TABLE IF NOT EXISTS users (
 -- 3. Locations Table
 CREATE TABLE IF NOT EXISTS locations (
     location_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     name VARCHAR(100) NOT NULL,
     address VARCHAR(255) DEFAULT 'Headquarters',
     city VARCHAR(100) DEFAULT 'Bangalore',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 4a. Meeting Rooms Table
+CREATE TABLE IF NOT EXISTS meeting_rooms (
+    meeting_room_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
+    name VARCHAR(100) NOT NULL,
+    capacity INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 4. Visitors Table
 CREATE TABLE IF NOT EXISTS visitors (
     visitor_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(100),
@@ -49,9 +62,11 @@ CREATE TABLE IF NOT EXISTS visitors (
 -- 5. Visits Table (Central Entity)
 CREATE TABLE IF NOT EXISTS visits (
     visit_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     visitor_id INT NOT NULL,
     employee_id INT NOT NULL,
     location_id INT NOT NULL,
+    meeting_room_id INT NULL,
     purpose VARCHAR(255) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
@@ -62,12 +77,14 @@ CREATE TABLE IF NOT EXISTS visits (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id) ON DELETE CASCADE,
     FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE,
-    FOREIGN KEY (location_id) REFERENCES locations(location_id) ON DELETE CASCADE
+    FOREIGN KEY (location_id) REFERENCES locations(location_id) ON DELETE CASCADE,
+    FOREIGN KEY (meeting_room_id) REFERENCES meeting_rooms(meeting_room_id) ON DELETE SET NULL
 );
 
 -- 6. Invitations Table
 CREATE TABLE IF NOT EXISTS invitations (
     invitation_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     visit_id INT NOT NULL,
     qr_code VARCHAR(64) UNIQUE NOT NULL,
     sent_at DATETIME NULL,
@@ -80,6 +97,7 @@ CREATE TABLE IF NOT EXISTS invitations (
 -- 7. Notifications Table
 CREATE TABLE IF NOT EXISTS notifications (
     notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     visit_id INT NOT NULL,
     type VARCHAR(50) NOT NULL,
     channel VARCHAR(20) DEFAULT 'EMAIL',
@@ -93,6 +111,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- 8. Approvals Table
 CREATE TABLE IF NOT EXISTS approvals (
     approval_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     visit_id INT NOT NULL,
     approver_id INT NULL,
     status VARCHAR(50) DEFAULT 'PENDING',
@@ -106,6 +125,7 @@ CREATE TABLE IF NOT EXISTS approvals (
 -- 9. Visit Events Table
 CREATE TABLE IF NOT EXISTS visit_events (
     visit_event_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     visit_id INT NOT NULL,
     event_type VARCHAR(20) NOT NULL,
     event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -117,6 +137,7 @@ CREATE TABLE IF NOT EXISTS visit_events (
 -- 10. Badges Table
 CREATE TABLE IF NOT EXISTS badges (
     badge_id INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id INT NOT NULL DEFAULT 1,
     visit_id INT NOT NULL,
     badge_code VARCHAR(32) UNIQUE NOT NULL,
     status VARCHAR(50) DEFAULT 'ISSUED',
@@ -149,6 +170,12 @@ INSERT INTO locations (location_id, name, address, city) VALUES
 (2, 'Boardroom 1 (5th Floor)', 'Building 4, Tech Park', 'Bangalore'),
 (3, 'Main Reception Area', 'Ground Floor, Building 4', 'Bangalore'),
 (4, 'Executive Suite', '6th Floor, Building 4', 'Bangalore')
+ON DUPLICATE KEY UPDATE name=VALUES(name);
+
+-- Sample Meeting Rooms
+INSERT INTO meeting_rooms (meeting_room_id, name, capacity) VALUES
+(1, 'Meeting Room 1', 6),
+(2, 'Meeting Room 2', 10)
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 
 -- Sample Visitors

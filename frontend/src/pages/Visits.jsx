@@ -17,6 +17,7 @@ const STATUS_OPTIONS = [
 
 export default function Visits() {
   const navigate = useNavigate();
+  const isAdmin = sessionStorage.getItem("role") === "ADMIN";
   const [visits, setVisits] = useState([]);
   const [search, setSearch] = useState("");
   const [visitDate, setVisitDate] = useState("");
@@ -51,10 +52,12 @@ export default function Visits() {
       <div className="visits-header">
         <div>
           <h1 className="page-title">Visits</h1>
-          <p className="page-subtitle">Visits you are hosting.</p>
+          <p className="page-subtitle">
+            {isAdmin ? "Visits across all employees." : "Visits you are hosting."}
+          </p>
         </div>
         <button className="btn-primary" onClick={() => navigate("/visits/new")}>
-          + Host a Visit
+          {isAdmin ? "+ Walk-in" : "+ Host a Visit"}
         </button>
       </div>
 
@@ -88,7 +91,7 @@ export default function Visits() {
       {loading ? (
         <div className="visits-loading">Loading visits...</div>
       ) : (
-        <VisitTable visits={visits} />
+        <VisitTable visits={visits} showHost={isAdmin} />
       )}
     </Layout>
   );

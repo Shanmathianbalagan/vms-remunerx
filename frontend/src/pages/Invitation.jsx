@@ -5,12 +5,28 @@ import { getInvitation, getNotifications } from "../services/api";
 import "./Dashboard.css";
 import "./Invitation.css";
 
-const NOTIFICATION_MESSAGES = {
-  SENT: (n) => `Email sent to ${n.recipient}`,
-  PENDING_EMAIL_SETUP: (n) =>
-    `Queued for ${n.recipient} — email sending isn't connected yet, so this hasn't gone out.`,
-  SKIPPED_NO_EMAIL: () => "Not sent — this visitor has no email on file.",
+const CHANNEL_ICONS = {
+  EMAIL: "fa-solid fa-envelope",
+  WHATSAPP: "fa-brands fa-whatsapp",
 };
+
+function notificationMessage(n) {
+  const channelLabel = n.channel === "WHATSAPP" ? "WhatsApp" : "Email";
+
+  if (n.status === "SENT") {
+    return `${channelLabel} sent to ${n.recipient}`;
+  }
+  if (n.status === "PENDING_EMAIL_SETUP" || n.status === "PENDING_WHATSAPP_SETUP") {
+    return `Queued for ${n.recipient} — ${channelLabel.toLowerCase()} sending isn't connected yet, so this hasn't gone out.`;
+  }
+  if (n.status === "SKIPPED_NO_EMAIL") {
+    return "Not sent — this visitor has no email on file.";
+  }
+  if (n.status === "SKIPPED_NO_PHONE") {
+    return "Not sent — this visitor has no phone number on file.";
+  }
+  return n.status;
+}
 
 export default function Invitation() {
   const { visitId } = useParams();
@@ -73,8 +89,8 @@ export default function Invitation() {
         <div className="notification-list">
           {notifications.map((n) => (
             <div key={n.notification_id} className="notification-item">
-              <i className="fa-solid fa-envelope"></i>
-              <span>{(NOTIFICATION_MESSAGES[n.status] || (() => n.status))(n)}</span>
+              <i className={CHANNEL_ICONS[n.channel] || "fa-solid fa-bell"}></i>
+              <span>{notificationMessage(n)}</span>
             </div>
           ))}
         </div>
