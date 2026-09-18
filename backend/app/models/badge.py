@@ -7,7 +7,6 @@ class Badge(Base):
     __tablename__ = "badges"
 
     badge_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    tenant_id = Column(Integer, nullable=False, default=1, index=True)
     visit_id = Column(Integer, ForeignKey("visits.visit_id"), nullable=False)
     badge_code = Column(String(32), unique=True, nullable=False)
     status = Column(String(50), default="ISSUED")

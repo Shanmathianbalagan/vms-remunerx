@@ -2,26 +2,21 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import get_current_employee
+from app.deps import CurrentUser, get_current_user
 from app.models.data_mapping import DataMapping
-from app.models.employee import Employee
 from app.schemas.location import LocationResponse
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
-
-# TODO: no real per-tenant session context exists yet - hardcoded to match the
-# seeded DATAMAPPING tenant until proper multi-tenant login is wired up.
-DEFAULT_TENANT_ID = 24
 
 
 @router.get("", response_model=list[LocationResponse])
 def list_locations(
     db: Session = Depends(get_db),
-    current_employee: Employee = Depends(get_current_employee),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     rows = (
         db.query(DataMapping)
-        .filter(DataMapping.tenantid == DEFAULT_TENANT_ID, DataMapping.grouping == "LOCATION")
+        .filter(DataMapping.tenantid == current_user.tenantid, DataMapping.grouping == "LOCATION")
         .order_by(DataMapping.internalcode)
         .all()
     )

@@ -7,7 +7,6 @@ class Invitation(Base):
     __tablename__ = "invitations"
 
     invitation_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    tenant_id = Column(Integer, nullable=False, default=1, index=True)
     visit_id = Column(Integer, ForeignKey("visits.visit_id"), nullable=False)
     qr_code = Column(String(64), unique=True, nullable=False)
     sent_at = Column(DateTime, nullable=True)

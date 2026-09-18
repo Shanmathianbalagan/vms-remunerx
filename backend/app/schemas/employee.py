@@ -9,11 +9,8 @@ class EmployeeCreate(BaseModel):
 
 
 class EmployeeResponse(BaseModel):
-    employee_id: int
+    employee_id: str  # this is the empid (text), field name kept for API compatibility
     name: str
-    email: str
+    email: str | None = None
     department: str | None = None
     phone: str | None = None
-
-    class Config:
-        from_attributes = True

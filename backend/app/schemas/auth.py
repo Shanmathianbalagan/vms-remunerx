@@ -9,8 +9,9 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user_id: int
-    employee_id: int | None
+    user_id: str
+    empid: str | None
+    tenantid: int
     name: str | None
     email: str
     role: str

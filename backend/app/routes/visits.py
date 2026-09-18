@@ -4,31 +4,27 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.deps import get_current_employee, get_current_user
-from app.models.employee import Employee
-from app.models.location import Location
-from app.models.meeting_room import MeetingRoom
-from app.models.user import User
+from app.deps import CurrentUser, get_current_user
 from app.models.invitation import Invitation
 from app.models.notification import Notification
+from app.models.payroll_employee import PayrollEmployee
 from app.models.visit import Visit
 from app.models.visitor import Visitor
 from app.schemas.invitation import InvitationResponse
 from app.schemas.notification import NotificationResponse
-from app.schemas.visit import HostSummary, LocationSummary, MeetingRoomSummary, VisitCreate, VisitorSummary, VisitResponse
+from app.schemas.visit import HostSummary, VisitCreate, VisitorSummary, VisitResponse
 from app.services.invitation_service import build_qr_image_data_uri
-from app.services.location_lookup import resolve_names
 from app.services.visit_service import create_visit
 
 router = APIRouter(prefix="/api/visits", tags=["visits"])
 
 
-def _get_visible_visit(db: Session, visit_id: int, current_user: User, current_employee: Employee) -> Visit:
-    # Admins can view any visit (e.g. one they just created on behalf of another
-    # employee) - everyone else can only view visits they host themselves.
-    query = db.query(Visit).filter(Visit.visit_id == visit_id)
-    if current_user.role != "ADMIN":
-        query = query.filter(Visit.employee_id == current_employee.employee_id)
+def _get_visible_visit(db: Session, visit_id: int, current_user: CurrentUser) -> Visit:
+    # Admins can view any visit in their tenant - everyone else can only view
+    # visits they host themselves.
+    query = db.query(Visit).filter(Visit.visit_id == visit_id, Visit.tenantid == current_user.tenantid)
+    if not current_user.is_admin:
+        query = query.filter(Visit.empid == current_user.empid)
 
     visit = query.first()
     if visit is None:
@@ -36,42 +32,38 @@ def _get_visible_visit(db: Session, visit_id: int, current_user: User, current_e
     return visit
 
 
-def _build_visit_responses(db: Session, visits: list[Visit]) -> list[VisitResponse]:
-    location_names = resolve_names(db, "LOCATION", Location, {v.location_id for v in visits})
-    room_names = resolve_names(
-        db, "MEETING ROOM", MeetingRoom, {v.meeting_room_id for v in visits if v.meeting_room_id}
+def _resolve_host_names(db: Session, tenantid: int, empids: set[str]) -> dict[str, str]:
+    if not empids:
+        return {}
+    rows = (
+        db.query(PayrollEmployee)
+        .filter(PayrollEmployee.tenantid == tenantid, PayrollEmployee.empid.in_(empids))
+        .all()
     )
+    return {row.empid: row.empname for row in rows}
 
-    responses = []
-    for visit in visits:
-        responses.append(
-            VisitResponse(
-                visit_id=visit.visit_id,
-                purpose=visit.purpose,
-                start_date=visit.start_date,
-                end_date=visit.end_date,
-                start_time=visit.start_time,
-                end_time=visit.end_time,
-                status=visit.status,
-                notes=visit.notes,
-                created_at=visit.created_at,
-                visitor=VisitorSummary.model_validate(visit.visitor),
-                location=LocationSummary(
-                    location_id=visit.location_id,
-                    name=location_names.get(visit.location_id, "Unknown location"),
-                ),
-                meeting_room=(
-                    MeetingRoomSummary(
-                        meeting_room_id=visit.meeting_room_id,
-                        name=room_names.get(visit.meeting_room_id, "Unknown room"),
-                    )
-                    if visit.meeting_room_id
-                    else None
-                ),
-                employee=HostSummary.model_validate(visit.employee),
-            )
+
+def _build_visit_responses(db: Session, tenantid: int, visits: list[Visit]) -> list[VisitResponse]:
+    host_names = _resolve_host_names(db, tenantid, {v.empid for v in visits})
+
+    return [
+        VisitResponse(
+            visit_id=visit.visit_id,
+            purpose=visit.purpose,
+            start_date=visit.start_date,
+            end_date=visit.end_date,
+            start_time=visit.start_time,
+            end_time=visit.end_time,
+            status=visit.status,
+            notes=visit.notes,
+            created_at=visit.created_at,
+            visitor=VisitorSummary.model_validate(visit.visitor),
+            location={"name": visit.locations},
+            meeting_room={"name": visit.meetingroom} if visit.meetingroom else None,
+            employee=HostSummary(employee_id=visit.empid, name=host_names.get(visit.empid, visit.empid)),
         )
-    return responses
+        for visit in visits
+    ]
 
 
 @router.get("", response_model=list[VisitResponse])
@@ -80,13 +72,16 @@ def list_visits(
     on_date: date | None = None,
     status: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    current_employee: Employee = Depends(get_current_employee),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    query = db.query(Visit).options(joinedload(Visit.visitor), joinedload(Visit.employee))
+    query = (
+        db.query(Visit)
+        .options(joinedload(Visit.visitor))
+        .filter(Visit.tenantid == current_user.tenantid)
+    )
 
-    if current_user.role != "ADMIN":
-        query = query.filter(Visit.employee_id == current_employee.employee_id)
+    if not current_user.is_admin:
+        query = query.filter(Visit.empid == current_user.empid)
 
     if search:
         query = query.join(Visitor).filter(Visitor.name.ilike(f"%{search}%"))
@@ -98,29 +93,48 @@ def list_visits(
         query = query.filter(Visit.status == status)
 
     visits = query.order_by(Visit.start_date.desc(), Visit.start_time.desc()).all()
-    return _build_visit_responses(db, visits)
+    return _build_visit_responses(db, current_user.tenantid, visits)
 
 
 @router.post("", response_model=VisitResponse)
 def create_visit_route(
     payload: VisitCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    current_employee: Employee = Depends(get_current_employee),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    is_admin = current_user.role == "ADMIN"
-    visit = create_visit(db, current_employee.employee_id, payload, is_admin=is_admin)
-    return _build_visit_responses(db, [visit])[0]
+    if current_user.is_admin:
+        if not payload.host_employee_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Select the employee this visitor is here to see",
+            )
+        creator_empid = None
+    else:
+        if not current_user.empid:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account is not linked to an employee record",
+            )
+        creator_empid = current_user.empid
+
+    visit = create_visit(
+        db,
+        creator_empid,
+        current_user.tenantid,
+        payload,
+        is_admin=current_user.is_admin,
+        actor_identifier=current_user.empid or current_user.sub,
+    )
+    return _build_visit_responses(db, current_user.tenantid, [visit])[0]
 
 
 @router.get("/{visit_id}/invitation", response_model=InvitationResponse)
 def get_visit_invitation(
     visit_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    current_employee: Employee = Depends(get_current_employee),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    _get_visible_visit(db, visit_id, current_user, current_employee)
+    _get_visible_visit(db, visit_id, current_user)
 
     invitation = db.query(Invitation).filter(Invitation.visit_id == visit_id).first()
     if invitation is None:
@@ -141,10 +155,9 @@ def get_visit_invitation(
 def get_visit_notifications(
     visit_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    current_employee: Employee = Depends(get_current_employee),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    _get_visible_visit(db, visit_id, current_user, current_employee)
+    _get_visible_visit(db, visit_id, current_user)
 
     return (
         db.query(Notification)

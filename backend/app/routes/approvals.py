@@ -2,22 +2,17 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.deps import get_current_admin
+from app.deps import CurrentUser, get_current_admin
 from app.models.approval import Approval
-from app.models.location import Location
-from app.models.user import User
 from app.models.visit import Visit
 from app.schemas.approval import ApprovalDecision, ApprovalResponse, ApprovalVisitSummary
-from app.schemas.visit import LocationSummary, VisitorSummary
+from app.schemas.visit import VisitorSummary
 from app.services.approval_service import decide_approval
-from app.services.location_lookup import resolve_names
 
 router = APIRouter(prefix="/api/approvals", tags=["approvals"])
 
 
-def _build_approval_responses(db: Session, approvals: list[Approval]) -> list[ApprovalResponse]:
-    location_names = resolve_names(db, "LOCATION", Location, {a.visit.location_id for a in approvals})
-
+def _build_approval_responses(approvals: list[Approval]) -> list[ApprovalResponse]:
     return [
         ApprovalResponse(
             approval_id=a.approval_id,
@@ -34,10 +29,7 @@ def _build_approval_responses(db: Session, approvals: list[Approval]) -> list[Ap
                 end_time=a.visit.end_time,
                 status=a.visit.status,
                 visitor=VisitorSummary.model_validate(a.visit.visitor),
-                location=LocationSummary(
-                    location_id=a.visit.location_id,
-                    name=location_names.get(a.visit.location_id, "Unknown location"),
-                ),
+                location={"name": a.visit.locations},
             ),
         )
         for a in approvals
@@ -48,17 +40,20 @@ def _build_approval_responses(db: Session, approvals: list[Approval]) -> list[Ap
 def list_approvals(
     status: str | None = "PENDING",
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: CurrentUser = Depends(get_current_admin),
 ):
-    query = db.query(Approval).options(
-        joinedload(Approval.visit).joinedload(Visit.visitor),
+    query = (
+        db.query(Approval)
+        .join(Visit)
+        .options(joinedload(Approval.visit).joinedload(Visit.visitor))
+        .filter(Visit.tenantid == current_admin.tenantid)
     )
 
     if status:
         query = query.filter(Approval.status == status)
 
     approvals = query.order_by(Approval.created_at.desc()).all()
-    return _build_approval_responses(db, approvals)
+    return _build_approval_responses(approvals)
 
 
 @router.post("/{approval_id}/decide", response_model=ApprovalResponse)
@@ -66,9 +61,7 @@ def decide_approval_route(
     approval_id: int,
     payload: ApprovalDecision,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: CurrentUser = Depends(get_current_admin),
 ):
-    approval = decide_approval(
-        db, approval_id, current_admin.employee_id, payload.status, payload.comments
-    )
-    return _build_approval_responses(db, [approval])[0]
+    approval = decide_approval(db, approval_id, int(current_admin.sub), payload.status, payload.comments)
+    return _build_approval_responses([approval])[0]

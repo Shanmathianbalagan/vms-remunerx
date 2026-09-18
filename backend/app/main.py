@@ -2,10 +2,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.models import employee, location, meeting_room, data_mapping, user, visitor, visit, invitation, notification, approval, visit_event, badge  # noqa: F401 (ensures tables are registered)
+from app.models import data_mapping, payroll_employee, visitor, visit, invitation, notification, approval, visit_event, badge  # noqa: F401 (ensures tables are registered)
 from app.routes import auth, visits, visitors, locations, meeting_rooms, approvals, checkin, employees
 
-Base.metadata.create_all(bind=engine)
+# vw_login_users is a real database VIEW, not a table we own - creating it here
+# would fail (or worse, shadow the payroll team's real view), so it's excluded
+# from create_all even though PayrollLoginUser is mapped onto it for querying.
+# payroll_employee (`employee`) and data_mapping (`datamapping`) also already
+# exist as real tables - create_all skips them automatically since they're
+# already present.
+_tables_to_create = [t for name, t in Base.metadata.tables.items() if name != "vw_login_users"]
+Base.metadata.create_all(bind=engine, tables=_tables_to_create)
 
 app = FastAPI(title="VMS API")
 

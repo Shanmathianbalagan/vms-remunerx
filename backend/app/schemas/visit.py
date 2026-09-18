@@ -4,15 +4,15 @@ from pydantic import BaseModel, field_validator, model_validator
 
 class VisitCreate(BaseModel):
     visitor_id: int
-    location_id: int
-    meeting_room_id: int | None = None
+    location_id: int  # a DATAMAPPING id (grouping='LOCATION') - resolved to text at save time
+    meeting_room_id: int | None = None  # a DATAMAPPING id (grouping='MEETING ROOM')
     purpose: str
     start_date: date
     end_date: date
     start_time: time
     end_time: time
     notes: str | None = None
-    host_employee_id: int | None = None
+    host_employee_id: str | None = None  # admin-only: host on behalf of this empid
 
     @field_validator("purpose")
     @classmethod
@@ -40,27 +40,16 @@ class VisitorSummary(BaseModel):
 
 
 class LocationSummary(BaseModel):
-    location_id: int
     name: str
-
-    class Config:
-        from_attributes = True
 
 
 class MeetingRoomSummary(BaseModel):
-    meeting_room_id: int
     name: str
-
-    class Config:
-        from_attributes = True
 
 
 class HostSummary(BaseModel):
-    employee_id: int
+    employee_id: str  # this is the empid (text), field name kept for API compatibility
     name: str
-
-    class Config:
-        from_attributes = True
 
 
 class VisitResponse(BaseModel):

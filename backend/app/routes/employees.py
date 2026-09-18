@@ -1,11 +1,12 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import get_current_admin
-from app.models.employee import Employee
-from app.models.user import User
+from app.deps import CurrentUser, get_current_admin
+from app.models.payroll_employee import PayrollEmployee
 from app.schemas.employee import EmployeeCreate, EmployeeResponse
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
@@ -15,44 +16,72 @@ router = APIRouter(prefix="/api/employees", tags=["employees"])
 def search_employees(
     q: str,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: CurrentUser = Depends(get_current_admin),
 ):
     if not q or len(q.strip()) < 2:
         return []
 
     term = f"%{q.strip()}%"
-    return (
-        db.query(Employee)
+    rows = (
+        db.query(PayrollEmployee)
         .filter(
+            PayrollEmployee.tenantid == current_admin.tenantid,
             or_(
-                Employee.name.ilike(term),
-                Employee.email.ilike(term),
-                Employee.phone.ilike(term),
-            )
+                PayrollEmployee.empname.ilike(term),
+                PayrollEmployee.email.ilike(term),
+                PayrollEmployee.phoneno.ilike(term),
+            ),
         )
-        .order_by(Employee.name)
+        .order_by(PayrollEmployee.empname)
         .limit(20)
         .all()
     )
+    return [
+        EmployeeResponse(
+            employee_id=row.empid, name=row.empname, email=row.email,
+            department=row.department, phone=row.phoneno,
+        )
+        for row in rows
+    ]
 
 
 @router.post("", response_model=EmployeeResponse)
 def create_employee(
     payload: EmployeeCreate,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: CurrentUser = Depends(get_current_admin),
 ):
-    existing = db.query(Employee).filter(Employee.email == payload.email).first()
+    """
+    Creates a lightweight payroll `employee` row with just the fields this
+    form collects. The real employee master record (payroll numbers, bank
+    details, etc.) should still be filled in properly through the payroll
+    system's own employee onboarding flow - this just lets a walk-in host be
+    findable immediately.
+    """
+    existing = (
+        db.query(PayrollEmployee)
+        .filter(PayrollEmployee.email == payload.email, PayrollEmployee.tenantid == current_admin.tenantid)
+        .first()
+    )
     if existing:
-        return existing
+        return EmployeeResponse(
+            employee_id=existing.empid, name=existing.empname, email=existing.email,
+            department=existing.department, phone=existing.phoneno,
+        )
 
-    employee = Employee(
-        name=payload.name,
+    empid = f"VMS-{uuid.uuid4().hex[:8].upper()}"
+    employee = PayrollEmployee(
+        empid=empid,
+        tenantid=current_admin.tenantid,
+        empname=payload.name,
         email=payload.email,
-        phone=payload.phone,
+        phoneno=payload.phone,
         department=payload.department or "General",
     )
     db.add(employee)
     db.commit()
     db.refresh(employee)
-    return employee
+    return EmployeeResponse(
+        employee_id=employee.empid, name=employee.empname, email=employee.email,
+        department=employee.department, phone=employee.phoneno,
+    )
