@@ -59,6 +59,14 @@
   overflow: hidden;
 }
 
+.visitor-result-row {
+  cursor: pointer;
+}
+
+.visitor-result-row:hover {
+  background: #f8fafc;
+}
+
 .visitor-results li {
   display: flex;
   align-items: center;

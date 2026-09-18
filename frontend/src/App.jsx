@@ -6,11 +6,18 @@ import CreateVisit from "./pages/CreateVisit";
 import Invitation from "./pages/Invitation";
 import Approvals from "./pages/Approvals";
 import CheckIn from "./pages/CheckIn";
+import Employees from "./pages/Employees";
 import ComingSoon from "./pages/ComingSoon";
 import { isLoggedIn } from "./services/auth";
 
 function PrivateRoute({ children }) {
   return isLoggedIn() ? children : <Navigate to="/login" replace />;
+}
+
+function AdminRoute({ children }) {
+  if (!isLoggedIn()) return <Navigate to="/login" replace />;
+  if (sessionStorage.getItem("role") !== "ADMIN") return <Navigate to="/dashboard" replace />;
+  return children;
 }
 
 function App() {
@@ -55,6 +62,14 @@ function App() {
           <PrivateRoute>
             <ComingSoon title="Visitors" />
           </PrivateRoute>
+        }
+      />
+      <Route
+        path="/employees"
+        element={
+          <AdminRoute>
+            <Employees />
+          </AdminRoute>
         }
       />
       <Route

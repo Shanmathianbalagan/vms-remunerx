@@ -12,6 +12,27 @@ from app.schemas.employee import EmployeeCreate, EmployeeResponse
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
 
+def _to_response(row: PayrollEmployee) -> EmployeeResponse:
+    return EmployeeResponse(
+        employee_id=row.empid, name=row.empname, email=row.email,
+        department=row.department, phone=row.phoneno,
+    )
+
+
+@router.get("", response_model=list[EmployeeResponse])
+def list_employees(
+    db: Session = Depends(get_db),
+    current_admin: CurrentUser = Depends(get_current_admin),
+):
+    rows = (
+        db.query(PayrollEmployee)
+        .filter(PayrollEmployee.tenantid == current_admin.tenantid)
+        .order_by(PayrollEmployee.empname)
+        .all()
+    )
+    return [_to_response(row) for row in rows]
+
+
 @router.get("/search", response_model=list[EmployeeResponse])
 def search_employees(
     q: str,
@@ -36,13 +57,7 @@ def search_employees(
         .limit(20)
         .all()
     )
-    return [
-        EmployeeResponse(
-            employee_id=row.empid, name=row.empname, email=row.email,
-            department=row.department, phone=row.phoneno,
-        )
-        for row in rows
-    ]
+    return [_to_response(row) for row in rows]
 
 
 @router.post("", response_model=EmployeeResponse)
@@ -64,10 +79,7 @@ def create_employee(
         .first()
     )
     if existing:
-        return EmployeeResponse(
-            employee_id=existing.empid, name=existing.empname, email=existing.email,
-            department=existing.department, phone=existing.phoneno,
-        )
+        return _to_response(existing)
 
     empid = f"VMS-{uuid.uuid4().hex[:8].upper()}"
     employee = PayrollEmployee(
@@ -81,7 +93,4 @@ def create_employee(
     db.add(employee)
     db.commit()
     db.refresh(employee)
-    return EmployeeResponse(
-        employee_id=employee.empid, name=employee.empname, email=employee.email,
-        department=employee.department, phone=employee.phoneno,
-    )
+    return _to_response(employee)

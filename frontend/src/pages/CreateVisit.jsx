@@ -5,7 +5,6 @@ import {
   searchVisitors,
   createVisitor,
   searchEmployees,
-  createEmployee,
   getLocations,
   getMeetingRooms,
   createVisit,
@@ -24,13 +23,6 @@ export default function CreateVisit() {
   const [hostResults, setHostResults] = useState([]);
   const [hostSearching, setHostSearching] = useState(false);
   const [selectedHost, setSelectedHost] = useState(null);
-  const [showNewHostForm, setShowNewHostForm] = useState(false);
-  const [newHost, setNewHost] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    department: "",
-  });
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -106,20 +98,7 @@ export default function CreateVisit() {
 
   function selectHost(employee) {
     setSelectedHost(employee);
-    setShowNewHostForm(false);
     setHostResults([]);
-  }
-
-  async function handleAddNewHost(e) {
-    e.preventDefault();
-    setError("");
-    try {
-      const employee = await createEmployee(newHost);
-      setSelectedHost(employee);
-      setShowNewHostForm(false);
-    } catch (err) {
-      setError(err.message);
-    }
   }
 
   async function handleAddNewVisitor(e) {
@@ -217,7 +196,11 @@ export default function CreateVisit() {
               {hostResults.length > 0 && (
                 <ul className="visitor-results">
                   {hostResults.map((emp) => (
-                    <li key={emp.employee_id}>
+                    <li
+                      key={emp.employee_id}
+                      className="visitor-result-row"
+                      onClick={() => selectHost(emp)}
+                    >
                       <div>
                         <strong>{emp.name}</strong>
                         <div className="selected-visitor-meta">
@@ -225,70 +208,9 @@ export default function CreateVisit() {
                           {emp.department ? ` · ${emp.department}` : ""}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => selectHost(emp)}
-                      >
-                        Select
-                      </button>
                     </li>
                   ))}
                 </ul>
-              )}
-
-              {!showNewHostForm && (
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => setShowNewHostForm(true)}
-                >
-                  + Add New Host
-                </button>
-              )}
-
-              {showNewHostForm && (
-                <form className="new-visitor-form" onSubmit={handleAddNewHost}>
-                  <div className="form-row">
-                    <label>Host Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={newHost.name}
-                      onChange={(e) => setNewHost({ ...newHost, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-row">
-                    <label>Phone Number</label>
-                    <input
-                      type="text"
-                      value={newHost.phone}
-                      onChange={(e) => setNewHost({ ...newHost, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-row">
-                    <label>Email *</label>
-                    <input
-                      type="email"
-                      required
-                      value={newHost.email}
-                      onChange={(e) => setNewHost({ ...newHost, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-row">
-                    <label>Department</label>
-                    <input
-                      type="text"
-                      value={newHost.department}
-                      onChange={(e) =>
-                        setNewHost({ ...newHost, department: e.target.value })
-                      }
-                    />
-                  </div>
-                  <button type="submit" className="btn-primary">
-                    Save Host
-                  </button>
-                </form>
               )}
             </>
           )}

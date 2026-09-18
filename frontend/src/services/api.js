@@ -58,6 +58,17 @@ export async function searchEmployees(q) {
   return data;
 }
 
+export async function getEmployees() {
+  const response = await fetch(`${API_URL}/api/employees`, {
+    headers: authHeaders(),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to load employees");
+  }
+  return data;
+}
+
 export async function createEmployee(employee) {
   const response = await fetch(`${API_URL}/api/employees`, {
     method: "POST",

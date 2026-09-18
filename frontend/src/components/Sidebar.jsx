@@ -11,12 +11,19 @@ const NAV_ITEMS = [
   { to: "/settings", label: "Settings", icon: "fa-gear" },
 ];
 
+const ADMIN_NAV_ITEMS = [
+  { to: "/employees", label: "Employees", icon: "fa-users" },
+];
+
 export default function Sidebar() {
+  const isAdmin = sessionStorage.getItem("role") === "ADMIN";
+  const items = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">Remunerx VMS</div>
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
